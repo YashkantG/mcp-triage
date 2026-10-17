@@ -11,13 +11,11 @@ aren't eligible — there's no line to attach a comment to.
 from __future__ import annotations
 
 import re
-from functools import lru_cache
 from pathlib import Path
 
 _SUPPRESS_RE = re.compile(r"mcp-triage:\s*ignore(?:\[([A-Za-z0-9,\s]+)\])?", re.IGNORECASE)
 
 
-@lru_cache(maxsize=256)
 def _read_lines(path: str) -> tuple:
     try:
         return tuple(Path(path).read_text(encoding="utf-8", errors="ignore").splitlines())
@@ -26,7 +24,10 @@ def _read_lines(path: str) -> tuple:
 
 
 def is_suppressed(file: str, line: int, rule_id: str) -> bool:
-    lines = _read_lines(file)
+    return _matches(_read_lines(file), line, rule_id)
+
+
+def _matches(lines: tuple, line: int, rule_id: str) -> bool:
     if not lines or not (1 <= line <= len(lines)):
         return False
     match = _SUPPRESS_RE.search(lines[line - 1])
@@ -40,7 +41,14 @@ def is_suppressed(file: str, line: int, rule_id: str) -> bool:
 
 
 def filter_suppressed(findings: list) -> list:
-    return [
-        f for f in findings
-        if f.line is None or not is_suppressed(f.file, f.line, f.rule_id)
-    ]
+    lines_by_file = {}
+    kept = []
+    for finding in findings:
+        if finding.line is None:
+            kept.append(finding)
+            continue
+        if finding.file not in lines_by_file:
+            lines_by_file[finding.file] = _read_lines(finding.file)
+        if not _matches(lines_by_file[finding.file], finding.line, finding.rule_id):
+            kept.append(finding)
+    return kept

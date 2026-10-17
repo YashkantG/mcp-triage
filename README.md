@@ -151,6 +151,11 @@ message = "Internal-only API called from an MCP tool handler"
 severity = "HIGH"
 ```
 
+`ignore.paths` patterns are matched against paths relative to the scan root
+(for example, `tests/fixtures/**`) as well as absolute paths. When `--config`
+points to a separate config file, path patterns still use the target being
+scanned as their root.
+
 **CLI**, for one-offs: `mcp-triage scan . --ignore-rule MCP004`
 
 This repo's own [`.mcptriage.toml`](.mcptriage.toml) is a worked example.

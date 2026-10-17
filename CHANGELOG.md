@@ -27,6 +27,22 @@ detail:
 
 ## [Unreleased]
 
+### Fixed
+- Relative `ignore.paths` globs now resolve from the scan root, including when
+  the config file is supplied separately.
+- Scanning a project no longer accidentally skips it because an ancestor
+  directory is named `tests`, `examples`, or another excluded directory.
+- Excluded directories are pruned during discovery instead of traversed and
+  filtered afterward, and source files are classified from the same walk.
+- The GitHub Action passes inputs through environment variables rather than
+  interpolating them into shell source. It now preserves the scanner's exit
+  status while still publishing SARIF output from scans that find issues.
+- Invalid output formats and malformed custom rules/severity config now fail
+  with actionable errors rather than silently changing output or crashing
+  during scanning.
+- Repeated scans in the same process now observe edits to inline suppression
+  comments instead of reusing stale cached file contents.
+
 ## [0.4.1] - 2026-09-06
 
 ### Fixed
