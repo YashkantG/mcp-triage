@@ -15,7 +15,7 @@ inputs:
     required: false
     default: "high"
   format:
-    description: "Output format: table, json, or sarif."
+    description: "Output format: table, json, sarif, or badge."
     required: false
     default: "table"
   config:
@@ -45,9 +45,11 @@ runs:
   steps:
     - name: Install mcp-triage
       shell: bash
+      env:
+        MCP_TRIAGE_VERSION: ${{ inputs.version }}
       run: |
-        if [ -n "${{ inputs.version }}" ]; then
-          pip install "mcp-triage==${{ inputs.version }}"
+        if [ -n "$MCP_TRIAGE_VERSION" ]; then
+          pip install "mcp-triage==$MCP_TRIAGE_VERSION"
         else
           pip install mcp-triage
         fi
@@ -55,27 +57,44 @@ runs:
     - name: Run mcp-triage
       id: scan
       shell: bash
+      env:
+        MCP_TRIAGE_PATH: ${{ inputs.path }}
+        MCP_TRIAGE_FORMAT: ${{ inputs.format }}
+        MCP_TRIAGE_FAIL_ON: ${{ inputs.fail-on }}
+        MCP_TRIAGE_CONFIG: ${{ inputs.config }}
+        MCP_TRIAGE_IGNORE_RULES: ${{ inputs.ignore-rule }}
       run: |
-        ARGS=("${{ inputs.path }}" --format "${{ inputs.format }}" --fail-on "${{ inputs.fail-on }}")
-        if [ -n "${{ inputs.config }}" ]; then
-          ARGS+=(--config "${{ inputs.config }}")
+        ARGS=("$MCP_TRIAGE_PATH" --format "$MCP_TRIAGE_FORMAT" --fail-on "$MCP_TRIAGE_FAIL_ON")
+        if [ -n "$MCP_TRIAGE_CONFIG" ]; then
+          ARGS+=(--config "$MCP_TRIAGE_CONFIG")
         fi
-        for rule in ${{ inputs.ignore-rule }}; do
+        if [ -n "$MCP_TRIAGE_IGNORE_RULES" ]; then
+          read -r -a IGNORE_RULES <<< "$MCP_TRIAGE_IGNORE_RULES"
+        else
+          IGNORE_RULES=()
+        fi
+        for rule in "${IGNORE_RULES[@]}"; do
           ARGS+=(--ignore-rule "$rule")
         done
 
-        if [ "${{ inputs.format }}" = "sarif" ]; then
-          mcp-triage scan "${ARGS[@]}" > mcp-triage-results.sarif
-          EXIT_CODE=$?
+        if [ "$MCP_TRIAGE_FORMAT" = "sarif" ]; then
+          if mcp-triage scan "${ARGS[@]}" > mcp-triage-results.sarif; then
+            EXIT_CODE=0
+          else
+            EXIT_CODE=$?
+          fi
           echo "sarif-file=mcp-triage-results.sarif" >> "$GITHUB_OUTPUT"
         else
-          mcp-triage scan "${ARGS[@]}"
-          EXIT_CODE=$?
+          if mcp-triage scan "${ARGS[@]}"; then
+            EXIT_CODE=0
+          else
+            EXIT_CODE=$?
+          fi
         fi
         exit $EXIT_CODE
 
     - name: Upload SARIF to GitHub Code Scanning
-      if: always() && inputs.format == 'sarif' && inputs.upload-sarif == 'true'
+      if: always() && inputs.format == 'sarif' && inputs.upload-sarif == 'true' && steps.scan.outputs.sarif-file != ''
       uses: github/codeql-action/upload-sarif@v3
       with:
         sarif_file: mcp-triage-results.sarif

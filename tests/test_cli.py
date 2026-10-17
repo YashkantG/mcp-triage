@@ -40,3 +40,21 @@ def test_version_flag():
     result = runner.invoke(app, ["--version"])
     assert result.exit_code == 0
     assert "mcp-triage" in result.stdout
+
+
+def test_invalid_format_is_rejected():
+    result = runner.invoke(app, ["scan", str(FIXTURES / "clean_server"), "--format", "yaml"])
+    assert result.exit_code == 2
+    assert "choose from table, json, sarif, or badge" in result.output
+
+
+def test_invalid_config_fails_with_actionable_error(tmp_path):
+    config = tmp_path / ".mcptriage.toml"
+    config.write_text('[severity]\nMCP102 = "urgent"\n', encoding="utf-8")
+    result = runner.invoke(
+        app,
+        ["scan", str(FIXTURES / "clean_server"), "--config", str(config)],
+    )
+    assert result.exit_code == 2
+    assert "HIGH, MEDIUM, or LOW" in result.output
+    assert "Traceback" not in result.output

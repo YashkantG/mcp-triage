@@ -7,6 +7,7 @@ import typer
 from rich.console import Console
 
 from mcp_triage import __version__
+from mcp_triage.config import ConfigError
 from mcp_triage.models import Severity
 from mcp_triage.report import render_badge, render_json, render_sarif, render_table
 from mcp_triage.scanner import scan as run_scan
@@ -57,12 +58,18 @@ def scan_command(
     ),
 ) -> None:
     """Scan TARGET for MCP security issues."""
-    findings = run_scan(
-        target,
-        extra_ignored_rules=set(ignore_rule),
-        config_path=config,
-        include_tests=include_tests,
-    )
+    if fmt not in {"table", "json", "sarif", "badge"}:
+        raise typer.BadParameter("choose from table, json, sarif, or badge", param_hint="--format")
+    try:
+        findings = run_scan(
+            target,
+            extra_ignored_rules=set(ignore_rule),
+            config_path=config,
+            include_tests=include_tests,
+        )
+    except ConfigError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
 
     if fmt == "json":
         print(render_json(findings))

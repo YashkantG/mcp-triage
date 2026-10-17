@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 MANIFEST_NAMES = {"mcp.json", "claude_desktop_config.json", "mcp_config.json"}
@@ -38,11 +39,18 @@ def iter_files(target: Path, include_tests: bool = False):
     if target.is_file():
         yield target
         return
-    for path in target.rglob("*"):
-        if _skipped(path, include_tests):
-            continue
-        if path.is_file():
-            yield path
+    for current_root, directories, filenames in os.walk(target, topdown=True):
+        current_path = Path(current_root)
+        relative_root = current_path.relative_to(target)
+        directories[:] = sorted(
+            name for name in directories
+            if not _skipped(relative_root / name, include_tests)
+        )
+        for filename in sorted(filenames):
+            relative_path = relative_root / filename
+            path = current_path / filename
+            if not _skipped(relative_path, include_tests) and path.is_file():
+                yield path
 
 
 def find_manifests(target: Path, include_tests: bool = False) -> list[Path]:

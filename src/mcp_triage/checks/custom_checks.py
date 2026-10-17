@@ -9,7 +9,7 @@ import re
 from pathlib import Path
 
 from mcp_triage.config import CustomRule
-from mcp_triage.models import Finding, Severity
+from mcp_triage.models import Finding
 
 
 def scan_with_custom_rules(path: Path, custom_rules: list) -> list:
@@ -27,7 +27,7 @@ def scan_with_custom_rules(path: Path, custom_rules: list) -> list:
             if pattern.search(line):
                 findings.append(Finding(
                     rule_id=cr.id,
-                    severity=Severity(cr.severity.upper()),
+                    severity=cr.severity,
                     file=str(path),
                     line=lineno,
                     message=cr.message,

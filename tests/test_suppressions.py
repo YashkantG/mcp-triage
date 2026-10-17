@@ -47,3 +47,15 @@ def test_suppression_does_not_affect_other_lines(tmp_path):
     assert len(findings) == 1
     assert findings[0].rule_id == "MCP102"
     assert findings[0].line == 5
+
+
+def test_updated_suppression_is_seen_on_a_subsequent_scan(tmp_path):
+    server = tmp_path / "server.py"
+    server.write_text(
+        "subprocess.run('x', shell=True)  # mcp-triage: ignore[MCP102]\n",
+        encoding="utf-8",
+    )
+    assert scan(tmp_path) == []
+
+    server.write_text("subprocess.run('x', shell=True)\n", encoding="utf-8")
+    assert any(f.rule_id == "MCP102" for f in scan(tmp_path))
