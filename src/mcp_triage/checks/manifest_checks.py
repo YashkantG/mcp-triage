@@ -169,6 +169,37 @@ def _check_schema(name: str, schema, file: str, line: int | None = None) -> list
     return []
 
 
+def _has_nested_open_object(schema) -> bool:
+    """Find explicitly open object schemas below the root input object."""
+    if isinstance(schema, dict):
+        return any(_has_open_object(value) for value in schema.values())
+    if isinstance(schema, list):
+        return any(_has_open_object(value) for value in schema)
+    return False
+
+
+def _has_open_object(schema) -> bool:
+    if isinstance(schema, dict):
+        if schema.get("additionalProperties") is True:
+            return True
+        return any(_has_open_object(value) for value in schema.values())
+    if isinstance(schema, list):
+        return any(_has_open_object(value) for value in schema)
+    return False
+
+
+def _check_nested_schema(name: str, schema, file: str) -> list[Finding]:
+    if _has_nested_open_object(schema):
+        return [Finding(
+            rule_id="MCP007",
+            severity=Severity.MEDIUM,
+            file=file,
+            message=f"Tool '{name}' has a nested object schema with additionalProperties=true "
+                    "(accepts arbitrary/unvalidated fields)",
+        )]
+    return []
+
+
 # ---------------------------------------------------------------------------
 # JSON manifests (mcp.json, captured tools/list responses, ...)
 # ---------------------------------------------------------------------------
@@ -212,11 +243,86 @@ def _iter_tool_like_objects(obj, path=""):
             yield from _iter_tool_like_objects(item, f"{path}[{i}]")
 
 
+_PROMPT_RESOURCE_KEYS = {"prompts", "resources", "resourcetemplates"}
+_CONCEALED_CONTENT_PATTERNS = (
+    re.compile(
+        r"\b(?:do not|don't|never)\s+(?:mention|reveal|disclose|tell|inform)\b"
+        r"[^.]{0,70}\b(?:this (?:prompt|resource|content)|that you (?:read|loaded|used))\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?:read|open|load|cat)\b[^.]{0,70}"
+        r"(?:\.ssh|id_rsa|\.env\b|credentials|passwords?|secrets?)"
+        r"[^.]{0,100}\b(?:send|include|provide|return|upload|post)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"(?:\.ssh|id_rsa|\.env\b|credentials|passwords?|secrets?)"
+        r"[^.]{0,100}\b(?:send|include|provide|return|upload|post)\b",
+        re.IGNORECASE,
+    ),
+)
+
+
+def _iter_prompt_resource_descriptions(obj, path=""):
+    if isinstance(obj, dict):
+        for key, value in obj.items():
+            child_path = f"{path}.{key}" if path else key
+            if (
+                key.lower() in _PROMPT_RESOURCE_KEYS
+                and isinstance(value, (dict, list))
+            ):
+                yield from _iter_named_descriptions(value, child_path)
+            else:
+                yield from _iter_prompt_resource_descriptions(value, child_path)
+    elif isinstance(obj, list):
+        for index, item in enumerate(obj):
+            yield from _iter_prompt_resource_descriptions(item, f"{path}[{index}]")
+
+
+def _iter_named_descriptions(obj, path):
+    if isinstance(obj, dict):
+        description = obj.get("description")
+        if isinstance(description, str):
+            yield path, obj.get("name") or obj.get("uri") or path, description
+        for key, value in obj.items():
+            if key.lower() in _PROMPT_RESOURCE_KEYS:
+                yield from _iter_named_descriptions(value, f"{path}.{key}")
+    elif isinstance(obj, list):
+        for index, item in enumerate(obj):
+            yield from _iter_named_descriptions(item, f"{path}[{index}]")
+
+
+def _check_prompt_resource_descriptions(data, file: str) -> list[Finding]:
+    findings = []
+    seen = set()
+    for json_path, name, description in _iter_prompt_resource_descriptions(data):
+        identity = (json_path, name, description)
+        if identity in seen:
+            continue
+        seen.add(identity)
+        matched = next(
+            (pattern for pattern in _CONCEALED_CONTENT_PATTERNS if pattern.search(description)),
+            None,
+        )
+        if matched is not None:
+            findings.append(Finding(
+                rule_id="MCP006",
+                severity=Severity.MEDIUM,
+                file=file,
+                message=f"MCP prompt/resource '{name}' contains concealed or exfiltrative instructions",
+                snippet=description[:200],
+            ))
+    return findings
+
+
 def check_tool_definition(tool: dict, file: str, json_path: str) -> list[Finding]:
     name = tool.get("name", json_path or "<unnamed tool>")
     description = tool.get("description", "") or ""
     findings = check_description(name, description, file)
-    findings.extend(_check_schema(name, tool.get("inputSchema") or tool.get("input_schema"), file))
+    schema = tool.get("inputSchema") or tool.get("input_schema")
+    findings.extend(_check_schema(name, schema, file))
+    findings.extend(_check_nested_schema(name, schema, file))
     return findings
 
 
@@ -229,6 +335,7 @@ def scan_manifest_file(path: Path) -> list[Finding]:
         return []
 
     findings: list[Finding] = []
+    findings.extend(_check_prompt_resource_descriptions(data, str(path)))
     seen = set()
     for json_path, obj in _iter_tool_like_objects(data):
         key = (obj.get("name"), obj.get("description"))

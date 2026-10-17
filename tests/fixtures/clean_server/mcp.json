@@ -15,10 +15,30 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "city": { "type": "string" }
+          "city": { "type": "string" },
+          "options": {
+            "type": "object",
+            "properties": {
+              "units": { "type": "string" }
+            },
+            "additionalProperties": false
+          }
         },
         "additionalProperties": false
       }
+    }
+  ],
+  "resources": [
+    {
+      "uri": "weather://current",
+      "name": "current_weather",
+      "description": "Current weather readings for the selected city."
+    }
+  ],
+  "prompts": [
+    {
+      "name": "weather_summary",
+      "description": "Summarize the supplied weather data for the user."
     }
   ],
   "host": "127.0.0.1"

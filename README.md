@@ -47,11 +47,11 @@ mcp-triage scan ./some-mcp-server
 That's the whole workflow. No account, no config file, no network calls — see
 [Runs entirely on your machine](#runs-entirely-on-your-machine).
 
-### Try the latest community improvements
+### Try the latest security rules and community improvements
 
-The latest baseline and Markdown-report improvements are available from the
-GitHub repository. Until the next PyPI release, install the current source
-directly:
+The latest rule additions (MCP006, MCP007, and MCP104), baseline scanning, and
+Markdown reports are available from the GitHub repository. Until the next
+PyPI release, install the current source directly:
 
 ```bash
 python -m pip install --upgrade "git+https://github.com/YashkantG/mcp-triage.git"
@@ -70,10 +70,15 @@ examples below use `@main` to access those repository features.
   "do not tell the user"), hidden zero-width unicode, and descriptions long
   enough to bury instructions in. Checked in static JSON manifests **and** in
   the source-embedded string literals where real servers actually keep them.
+- 🗂️ **Prompt and resource metadata** in JSON protocol manifests — checks
+  descriptions for concealed access and sensitive-data exfiltration patterns.
+- 🧩 **Nested tool input schemas** — finds explicitly open object schemas
+  inside nested properties and composition keywords, not only at the root.
 - 🔓 **Over-broad capabilities** — tools advertising shell/exec/arbitrary file
   access, or accepting unvalidated free-form input (`additionalProperties: true`).
 - 💣 **Dangerous code paths** in the implementation — `eval`,
-  `subprocess(..., shell=True)`, `os.system`, `pickle.loads`, unsafe `yaml.load`.
+  `subprocess(..., shell=True)` (including imported aliases in Python),
+  `os.system`, `pickle.loads`, unsafe `yaml.load`.
 - 🔑 **Hardcoded secrets** — API keys, AWS keys, GitHub/Slack tokens committed
   into source or config.
 - 🌐 **Unsafe defaults** — binding to `0.0.0.0`, `trust` / `skip_auth` flags
@@ -284,9 +289,12 @@ Reproduce it yourself: `python research/ecosystem_scan.py --sample-size 150`.
 | MCP003 | Suspiciously long tool description (payload smuggling risk) |
 | MCP004 | Over-broad capability exposed by tool name/description |
 | MCP005 | Tool schema accepts arbitrary/unvalidated input |
+| MCP006 | Concealed or exfiltrative prompt/resource description |
+| MCP007 | Nested tool schema accepts arbitrary fields |
 | MCP101 | Dangerous code execution sink (`eval`, `exec`, `new Function`) |
 | MCP102 | Shell command built from untrusted input |
 | MCP103 | Unsafe deserialization (`pickle.loads`, unsafe `yaml.load`) |
+| MCP104 | Aliased Python subprocess call with `shell=True` |
 | MCP201 | Hardcoded secret or credential |
 | MCP301 | Server bound to all network interfaces |
 | MCP302 | Authentication / trust check disabled |
@@ -304,6 +312,16 @@ That's a real tradeoff, stated plainly:
   data actually reaches a `shell=True` call. It is a first pass that tells you
   where a human should look — not a proof of safety, and it makes no soundness
   claim.
+
+Some Python execution-call recognition uses the standard-library AST to
+resolve imported `subprocess` aliases and multiline calls. MCP104 confirms
+`shell=True`, but does **not** prove that the command is attacker-controlled.
+MCP006 currently analyzes descriptions in JSON protocol manifests; it does not
+evaluate prompt bodies or dynamically generated content. MCP007 flags explicit
+`additionalProperties: true` in nested schemas; it does not infer whether an
+application validates the value elsewhere. MCP104 recognizes imported Python
+`subprocess` aliases only; alias resolution does not cover arbitrary dynamic
+references.
 
 Anyone selling you a scanner that claims to be complete is selling you
 something else.

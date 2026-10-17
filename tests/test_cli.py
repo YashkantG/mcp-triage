@@ -20,7 +20,9 @@ def test_scan_exits_zero_on_clean_target():
 
 
 def test_ignore_rule_flag_removes_findings_and_can_flip_exit_code():
-    all_high_rules = ["MCP001", "MCP101", "MCP102", "MCP103", "MCP201", "MCP302"]
+    all_high_rules = [
+        "MCP001", "MCP101", "MCP102", "MCP103", "MCP104", "MCP201", "MCP302"
+    ]
     args = ["scan", str(FIXTURES / "vulnerable_server"), "--include-tests", "--format", "json"]
     for rule in all_high_rules:
         args += ["--ignore-rule", rule]
