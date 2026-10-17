@@ -47,6 +47,22 @@ mcp-triage scan ./some-mcp-server
 That's the whole workflow. No account, no config file, no network calls — see
 [Runs entirely on your machine](#runs-entirely-on-your-machine).
 
+### Try the latest community improvements
+
+The latest baseline and Markdown-report improvements are available from the
+GitHub repository. Until the next PyPI release, install the current source
+directly:
+
+```bash
+python -m pip install --upgrade "git+https://github.com/YashkantG/mcp-triage.git"
+mcp-triage scan ./some-mcp-server --write-baseline .mcp-triage-baseline.json
+mcp-triage scan ./some-mcp-server --baseline .mcp-triage-baseline.json --format markdown
+```
+
+The ordinary `pip install mcp-triage` command installs the latest published
+PyPI version, which may not yet include changes on `main`. The GitHub Action
+examples below use `@main` to access those repository features.
+
 ## What it catches
 
 - 🧠 **Prompt-injection-prone tool descriptions** — phrasing aimed at the
@@ -104,7 +120,8 @@ scans:
 
 Generate or intentionally refresh the baseline with
 `write-baseline: .mcp-triage-baseline.json`. Baseline generation does not fail
-the step for existing findings.
+the step for existing findings. The baseline scan then fails only when it finds
+a new issue at or above the configured `fail-on` severity.
 
 **pre-commit**:
 
