@@ -45,7 +45,9 @@ def test_version_flag():
 def test_invalid_format_is_rejected():
     result = runner.invoke(app, ["scan", str(FIXTURES / "clean_server"), "--format", "yaml"])
     assert result.exit_code == 2
-    assert "choose from table, json, sarif, or badge" in result.output
+    assert "choose from table" in result.output
+    assert "markdown, or" in result.output
+    assert "badge" in result.output
 
 
 def test_invalid_config_fails_with_actionable_error(tmp_path):
@@ -57,4 +59,70 @@ def test_invalid_config_fails_with_actionable_error(tmp_path):
     )
     assert result.exit_code == 2
     assert "HIGH, MEDIUM, or LOW" in result.output
+    assert "Traceback" not in result.output
+
+
+def test_baseline_generation_and_comparison(tmp_path):
+    baseline = tmp_path / "baseline.json"
+    target = FIXTURES / "vulnerable_server"
+    write_result = runner.invoke(
+        app,
+        [
+            "scan",
+            str(target),
+            "--include-tests",
+            "--format",
+            "json",
+            "--write-baseline",
+            str(baseline),
+        ],
+    )
+    assert write_result.exit_code == 0
+    assert baseline.is_file()
+
+    compare_result = runner.invoke(
+        app,
+        ["scan", str(target), "--include-tests", "--baseline", str(baseline)],
+    )
+    assert compare_result.exit_code == 0
+    assert "No new findings compared with the baseline" in compare_result.output
+
+
+def test_baseline_options_are_mutually_exclusive(tmp_path):
+    baseline = tmp_path / "baseline.json"
+    baseline.write_text('{"schema_version": 1, "findings": []}', encoding="utf-8")
+    result = runner.invoke(
+        app,
+        [
+            "scan",
+            str(FIXTURES / "clean_server"),
+            "--baseline",
+            str(baseline),
+            "--write-baseline",
+            str(tmp_path / "new.json"),
+        ],
+    )
+    assert result.exit_code == 2
+    assert "cannot be used" in result.output
+    assert "together" in result.output
+
+
+def test_markdown_format_produces_report():
+    result = runner.invoke(
+        app,
+        ["scan", str(FIXTURES / "vulnerable_server"), "--format", "markdown"],
+    )
+    assert "# mcp-triage scan report" in result.output
+    assert "| Severity | Rule | Location | Finding |" in result.output
+
+
+def test_malformed_baseline_fails_with_actionable_error(tmp_path):
+    baseline = tmp_path / "baseline.json"
+    baseline.write_text("{not json", encoding="utf-8")
+    result = runner.invoke(
+        app,
+        ["scan", str(FIXTURES / "clean_server"), "--baseline", str(baseline)],
+    )
+    assert result.exit_code == 2
+    assert "Cannot read baseline" in result.output
     assert "Traceback" not in result.output

@@ -89,12 +89,29 @@ of scrolling past in a build log:
     upload-sarif: "true"
 ```
 
+To adopt the scanner in a repository with existing findings, generate a
+baseline once, check that JSON file into the repository, and pass it on later
+scans:
+
+```yaml
+- uses: YashkantG/mcp-triage@main
+  with:
+    path: ./my-mcp-server
+    baseline: .mcp-triage-baseline.json
+    format: sarif
+    upload-sarif: "true"
+```
+
+Generate or intentionally refresh the baseline with
+`write-baseline: .mcp-triage-baseline.json`. Baseline generation does not fail
+the step for existing findings.
+
 **pre-commit**:
 
 ```yaml
 repos:
   - repo: https://github.com/YashkantG/mcp-triage
-    rev: v0.3.0
+    rev: v0.4.1
     hooks:
       - id: mcp-triage
 ```
@@ -102,6 +119,33 @@ repos:
 **Any other CI** — `mcp-triage scan . --fail-on high` exits non-zero when it
 finds something at or above that severity. `--format json` for machine-readable
 output.
+
+### Adopt it without blocking on old findings
+
+For a project adding security checks to an existing codebase, save the current
+findings once and fail future scans only when they introduce a new finding:
+
+```bash
+mcp-triage scan . --write-baseline .mcp-triage-baseline.json
+mcp-triage scan . --baseline .mcp-triage-baseline.json --format sarif
+```
+
+Check the baseline file into version control and refresh it intentionally
+after reviewing existing findings. Baselines use a versioned JSON format and
+store finding fingerprints only (not code snippets); line-number shifts alone
+do not make an otherwise unchanged finding new. Invalid or unsupported
+baseline files fail with an explicit error.
+
+### Shareable scan reports
+
+Use `--format markdown` to generate a readable report for a pull request,
+issue, or security review:
+
+```bash
+mcp-triage scan . --format markdown > security-report.md
+```
+
+JSON and SARIF remain available for automation and code-scanning integrations.
 
 ## Show your posture
 

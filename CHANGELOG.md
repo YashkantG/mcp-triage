@@ -18,14 +18,25 @@ detail:
   changes ship in a minor release at the earliest, and are always listed here.
 - **New rules may be added in a minor release.** This can surface new findings
   in an existing codebase, which is why `--fail-on`, `--ignore-rule` and
-  `.mcptriage.toml` exist. (A baseline mode, to accept existing findings and
-  fail only on new ones, is planned but not yet implemented.)
+  `.mcptriage.toml` exist. Use `--baseline` to fail only on new findings while
+  adopting the scanner into a project with existing findings.
 - **Removing a rule, or making an existing rule meaningfully broader, is a
   breaking change** and waits for a major version.
 
 ---
 
 ## [Unreleased]
+
+### Added
+- **Baseline mode** (`--write-baseline` / `--baseline`) to adopt the scanner on
+  existing projects and fail CI only on newly introduced findings. The
+  versioned baseline stores fingerprints rather than source snippets, is
+  tolerant of line-number shifts, and reports malformed data explicitly.
+- **Markdown reports** (`--format markdown`) for sharing scan results in pull
+  requests, issue discussions, and security reviews.
+- The GitHub Action installs the code from the selected action ref by default,
+  keeping its CLI features in sync; `version` remains available as a PyPI
+  package override.
 
 ### Fixed
 - Relative `ignore.paths` globs now resolve from the scan root, including when
