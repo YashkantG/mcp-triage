@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json as json_module
 from dataclasses import asdict
+from html import escape
 from pathlib import Path
 
 from rich.console import Console
@@ -61,6 +62,68 @@ def render_json(findings: list[Finding]) -> str:
         [{**asdict(f), "severity": f.severity.value} for f in findings],
         indent=2,
     )
+
+
+def _markdown_cell(value: str) -> str:
+    return (
+        escape(value, quote=False)
+        .replace("\\", "\\\\")
+        .replace("|", "\\|")
+        .replace("\r", " ")
+        .replace("\n", " ")
+    )
+
+
+def render_markdown(
+    findings: list[Finding],
+    root: Path,
+    baseline_comparison: bool = False,
+) -> str:
+    counts = {severity: sum(f.severity == severity for f in findings) for severity in Severity}
+    lines = [
+        "# mcp-triage scan report",
+        "",
+        f"**Findings:** {len(findings)}",
+    ]
+    summary = ", ".join(
+        f"{severity.value}: {counts[severity]}"
+        for severity in Severity
+        if counts[severity]
+    )
+    if summary:
+        lines[-1] += f" ({summary})"
+    if baseline_comparison:
+        lines.extend(["", "**Comparison:** New findings not present in the supplied baseline."])
+    lines.extend(["", "| Severity | Rule | Location | Finding |", "|---|---|---|---|"])
+    for finding in sorted(
+        findings,
+        key=lambda item: (-item.severity.weight, item.file, item.line or 0, item.rule_id),
+    ):
+        location = _relative_uri(finding.file, root)
+        if finding.line:
+            location += f":{finding.line}"
+        lines.append(
+            "| "
+            + " | ".join(
+                _markdown_cell(value)
+                for value in (
+                    finding.severity.value,
+                    f"{finding.rule_id} ({RULES.get(finding.rule_id, 'unknown rule')})",
+                    location,
+                    finding.message,
+                )
+            )
+            + " |"
+        )
+    if not findings:
+        empty_message = (
+            "No new findings compared with the baseline."
+            if baseline_comparison
+            else "No issues found."
+        )
+        lines.append(f"| - | - | - | {empty_message} |")
+    lines.append("")
+    return "\n".join(lines)
 
 
 def _relative_uri(file: str, root: Path) -> str:

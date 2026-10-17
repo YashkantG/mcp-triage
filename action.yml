@@ -15,7 +15,7 @@ inputs:
     required: false
     default: "high"
   format:
-    description: "Output format: table, json, sarif, or badge."
+    description: "Output format: table, json, sarif, markdown, or badge."
     required: false
     default: "table"
   config:
@@ -26,8 +26,16 @@ inputs:
     description: "Space-separated rule IDs to suppress, e.g. 'MCP004 MCP301'."
     required: false
     default: ""
+  baseline:
+    description: "Path to a finding baseline; only findings absent from it are reported."
+    required: false
+    default: ""
+  write-baseline:
+    description: "Write the current findings to this baseline path."
+    required: false
+    default: ""
   version:
-    description: "Version of mcp-triage to install (defaults to latest)."
+    description: "Optional PyPI version override; by default installs the code from this action ref."
     required: false
     default: ""
   upload-sarif:
@@ -51,7 +59,7 @@ runs:
         if [ -n "$MCP_TRIAGE_VERSION" ]; then
           pip install "mcp-triage==$MCP_TRIAGE_VERSION"
         else
-          pip install mcp-triage
+          pip install "$GITHUB_ACTION_PATH"
         fi
 
     - name: Run mcp-triage
@@ -63,6 +71,8 @@ runs:
         MCP_TRIAGE_FAIL_ON: ${{ inputs.fail-on }}
         MCP_TRIAGE_CONFIG: ${{ inputs.config }}
         MCP_TRIAGE_IGNORE_RULES: ${{ inputs.ignore-rule }}
+        MCP_TRIAGE_BASELINE: ${{ inputs.baseline }}
+        MCP_TRIAGE_WRITE_BASELINE: ${{ inputs.write-baseline }}
       run: |
         ARGS=("$MCP_TRIAGE_PATH" --format "$MCP_TRIAGE_FORMAT" --fail-on "$MCP_TRIAGE_FAIL_ON")
         if [ -n "$MCP_TRIAGE_CONFIG" ]; then
@@ -76,6 +86,12 @@ runs:
         for rule in "${IGNORE_RULES[@]}"; do
           ARGS+=(--ignore-rule "$rule")
         done
+        if [ -n "$MCP_TRIAGE_BASELINE" ]; then
+          ARGS+=(--baseline "$MCP_TRIAGE_BASELINE")
+        fi
+        if [ -n "$MCP_TRIAGE_WRITE_BASELINE" ]; then
+          ARGS+=(--write-baseline "$MCP_TRIAGE_WRITE_BASELINE")
+        fi
 
         if [ "$MCP_TRIAGE_FORMAT" = "sarif" ]; then
           if mcp-triage scan "${ARGS[@]}" > mcp-triage-results.sarif; then
