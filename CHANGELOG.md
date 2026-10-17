@@ -28,6 +28,16 @@ detail:
 ## [Unreleased]
 
 ### Added
+- **MCP006** flags narrowly defined concealed-access and sensitive-data
+  exfiltration language in JSON MCP prompt, resource, and resource-template
+  descriptions. It does not inspect prompt bodies or infer runtime behavior.
+- **MCP007** detects explicit `additionalProperties: true` in nested tool input
+  schemas, including properties and composition branches, without duplicating
+  the existing top-level MCP005 finding.
+- **MCP104** uses Python's standard-library AST to detect `shell=True` calls
+  through aliased `subprocess` imports and multiline calls not covered by the
+  existing qualified-call pattern. It does not claim that the command is
+  attacker-controlled.
 - **Baseline mode** (`--write-baseline` / `--baseline`) to adopt the scanner on
   existing projects and fail CI only on newly introduced findings. The
   versioned baseline stores fingerprints rather than source snippets, is

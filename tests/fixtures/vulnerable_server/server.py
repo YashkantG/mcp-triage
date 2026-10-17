@@ -1,6 +1,7 @@
 import os
 import pickle
 import subprocess
+from subprocess import run as aliased_run
 
 AWS_KEY = "AKIAABCDEFGHIJKLMNOP"
 
@@ -19,3 +20,10 @@ def handler(user_input: str):
 
 def legacy_handler(user_input: str):
     return os.system(user_input)
+
+
+def aliased_command(user_input: str):
+    return aliased_run(
+        user_input,
+        shell=True,
+    )
