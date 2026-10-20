@@ -128,3 +128,91 @@ def test_malformed_baseline_fails_with_actionable_error(tmp_path):
     assert result.exit_code == 2
     assert "Cannot read baseline" in result.output
     assert "Traceback" not in result.output
+
+
+def test_fail_on_is_case_insensitive():
+    result = runner.invoke(
+        app,
+        [
+            "scan",
+            str(FIXTURES / "vulnerable_server"),
+            "--include-tests",
+            "--fail-on",
+            "HIGH",
+        ],
+    )
+
+    assert result.exit_code == 1
+
+
+def test_audit_local_json_redacts_credentials_and_lists_checked_config(tmp_path):
+    config = tmp_path / "mcp.json"
+    secret = "ghp_0123456789abcdefghijklmnopqrstuvwx"
+    config.write_text(
+        json.dumps({"mcpServers": {"test": {
+            "command": "node",
+            "env": {"GITHUB_TOKEN": secret},
+        }}}),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["audit-local", "--path", str(config), "--format", "json"])
+
+    assert result.exit_code == 1
+    output = json.loads(result.stdout)
+    assert str(config.resolve()) in output["config_files"]
+    assert output["servers"] == [{"name": "test", "config_file": str(config.resolve())}]
+    assert any(finding["rule_id"] == "MCP201" for finding in output["findings"])
+    assert secret not in result.output
+
+
+def test_audit_local_markdown_format_and_case_insensitive_threshold(tmp_path):
+    config = tmp_path / "mcp.json"
+    config.write_text(
+        json.dumps({"mcpServers": {"test": {
+            "command": "npx",
+            "args": ["-y", "unpinned-server"],
+        }}}),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "audit-local",
+            "--path",
+            str(config),
+            "--format",
+            "markdown",
+            "--fail-on",
+            "mEdIuM",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "# Local MCP configuration audit" in result.stdout
+    assert "test" in result.stdout
+    assert "MCP303" in result.stdout
+
+
+def test_audit_local_no_findings_exits_successfully(tmp_path):
+    config = tmp_path / "mcp.json"
+    config.write_text(
+        json.dumps({"mcpServers": {"test": {"command": "node", "args": ["server.js"]}}}),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["audit-local", "--path", str(config), "--format", "json"])
+
+    assert result.exit_code == 0
+    assert json.loads(result.stdout)["findings"] == []
+
+
+def test_audit_local_invalid_format_is_rejected(tmp_path):
+    config = tmp_path / "mcp.json"
+    config.write_text("{}", encoding="utf-8")
+
+    result = runner.invoke(app, ["audit-local", "--path", str(config), "--format", "yaml"])
+
+    assert result.exit_code == 2
+    assert "choose from table, json, or markdown" in result.output

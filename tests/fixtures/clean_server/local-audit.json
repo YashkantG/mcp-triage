@@ -1,0 +1,21 @@
+{
+  "mcpServers": {
+    "pinned-package": {
+      "command": "npx",
+      "args": ["-y", "@example/server@1.2.3"]
+    },
+    "local-endpoint": {
+      "url": "http://127.0.0.1:8080"
+    },
+    "scoped-filesystem": {
+      "command": "docker",
+      "args": ["run", "-v", "/workspace/project:/workspace", "server:latest"]
+    },
+    "credential-from-environment": {
+      "command": "node",
+      "env": {
+        "API_TOKEN": "${API_TOKEN}"
+      }
+    }
+  }
+}

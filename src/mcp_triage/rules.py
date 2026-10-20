@@ -15,4 +15,8 @@ RULES = {
     "MCP201": "Hardcoded secret or credential",
     "MCP301": "Server bound to all network interfaces",
     "MCP302": "Authentication / trust check disabled",
+    "MCP303": "MCP server package is not pinned to an exact version",
+    "MCP304": "MCP server downloads and executes a remote script",
+    "MCP305": "MCP server uses unencrypted remote HTTP",
+    "MCP306": "MCP server runs with elevated privileges or broad filesystem access",
 }
