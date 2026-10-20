@@ -183,6 +183,33 @@ def test_reports_home_directory_mount(tmp_path):
     assert any(f.rule_id == "MCP306" for f in result.findings)
 
 
+def test_reports_docker_mount_spec_for_home_directory(tmp_path):
+    path = _config(tmp_path, {
+        "command": "docker",
+        "args": [
+            "run",
+            "--mount",
+            f"type=bind,source={tmp_path},target=/host",
+            "server:latest",
+        ],
+    })
+
+    result = audit_local(paths=[path], home=tmp_path)
+
+    assert any(f.rule_id == "MCP306" for f in result.findings)
+
+
+def test_reports_docker_mount_spec_for_root(tmp_path):
+    path = _config(tmp_path, {
+        "command": "docker",
+        "args": ["run", "--mount", "type=bind,source=/,target=/host", "server:latest"],
+    })
+
+    result = audit_local(paths=[path], home=tmp_path)
+
+    assert any(f.rule_id == "MCP306" for f in result.findings)
+
+
 def test_does_not_report_specific_subdirectory_mount(tmp_path):
     subdirectory = tmp_path / "project"
     path = _config(tmp_path, {

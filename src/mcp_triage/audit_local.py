@@ -221,8 +221,12 @@ def _is_local_host(host: str | None) -> bool:
 def _is_whole_home_mount(value: str, home: Path) -> bool:
     home_path = str(home.resolve())
     normalized = value.replace("\\", "/")
-    for segment in re.split(r"[:,\s]", normalized):
+    for segment in re.split(r"[:,\s,]", normalized):
         cleaned = segment.strip("\"'")
+        if "=" in cleaned:
+            key, candidate = cleaned.split("=", 1)
+            if key.casefold() in {"source", "src"}:
+                cleaned = candidate
         if cleaned in {"/", "~", home_path}:
             return True
     if normalized.startswith(f"{home_path}:") or f"source={home_path}," in normalized:
