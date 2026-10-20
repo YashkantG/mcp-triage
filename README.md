@@ -47,21 +47,20 @@ mcp-triage scan ./some-mcp-server
 That's the whole workflow. No account, no config file, no network calls — see
 [Runs entirely on your machine](#runs-entirely-on-your-machine).
 
-### Try the latest security rules and community improvements
+### Use the latest security rules and community improvements
 
-The latest rule additions (MCP006, MCP007, and MCP104), baseline scanning, and
-Markdown reports are available from the GitHub repository. Until the next
-PyPI release, install the current source directly:
+Version 0.5.0 includes local MCP configuration auditing (MCP201 and
+MCP303–MCP306), new server-analysis rules (MCP006, MCP007, and MCP104), baseline
+scanning, and Markdown reports:
 
 ```bash
-python -m pip install --upgrade "git+https://github.com/YashkantG/mcp-triage.git"
+mcp-triage audit-local
 mcp-triage scan ./some-mcp-server --write-baseline .mcp-triage-baseline.json
 mcp-triage scan ./some-mcp-server --baseline .mcp-triage-baseline.json --format markdown
 ```
 
-The ordinary `pip install mcp-triage` command installs the latest published
-PyPI version, which may not yet include changes on `main`. The GitHub Action
-examples below use `@main` to access those repository features.
+Install or upgrade with `python -m pip install --upgrade mcp-triage`. The
+GitHub Action examples below use `@main` to access the latest repository code.
 
 ### Audit MCP servers already configured on your machine
 
@@ -156,7 +155,7 @@ a new issue at or above the configured `fail-on` severity.
 ```yaml
 repos:
   - repo: https://github.com/YashkantG/mcp-triage
-    rev: v0.4.1
+    rev: v0.5.0
     hooks:
       - id: mcp-triage
 ```
