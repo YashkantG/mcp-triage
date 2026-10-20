@@ -63,6 +63,26 @@ The ordinary `pip install mcp-triage` command installs the latest published
 PyPI version, which may not yet include changes on `main`. The GitHub Action
 examples below use `@main` to access those repository features.
 
+### Audit MCP servers already configured on your machine
+
+`mcp-triage audit-local` checks supported Claude Desktop/Code, Cursor, VS Code,
+Windsurf, and Gemini configuration locations, along with MCP config files in
+the current project:
+
+```bash
+mcp-triage audit-local
+mcp-triage audit-local --format markdown
+mcp-triage audit-local --path ./mcp.json --fail-on medium
+```
+
+The command is read-only and never prints credential values. It lists the
+configuration files it checked and every configured server; use repeatable
+`--path` options to audit specific files instead of discovery. Reports identify
+potential credential values (redacted), unpinned `npx`/`uvx` packages,
+download-and-shell launch commands, non-local plain HTTP endpoints, and `sudo`
+or whole-root/home directory access. Docker image tags are not checked. A clean
+result is not a guarantee that a configured server is safe.
+
 ## What it catches
 
 - 🧠 **Prompt-injection-prone tool descriptions** — phrasing aimed at the
@@ -83,6 +103,9 @@ examples below use `@main` to access those repository features.
   into source or config.
 - 🌐 **Unsafe defaults** — binding to `0.0.0.0`, `trust` / `skip_auth` flags
   left on.
+- 🖥️ **Risky local MCP configuration** — `mcp-triage audit-local` flags
+  embedded credentials, unpinned package launches, remote download-to-shell
+  commands, non-local plain HTTP, and elevated or broad filesystem access.
 
 Full [rule reference](#rules) below. Every rule ID is stable — see the
 [rule stability policy](CHANGELOG.md#rule-stability-policy) before you pin one
@@ -298,6 +321,10 @@ Reproduce it yourself: `python research/ecosystem_scan.py --sample-size 150`.
 | MCP201 | Hardcoded secret or credential |
 | MCP301 | Server bound to all network interfaces |
 | MCP302 | Authentication / trust check disabled |
+| MCP303 | MCP package launched with npx/uvx without an exact version pin |
+| MCP304 | MCP launch command downloads a script and pipes it to a shell |
+| MCP305 | MCP server uses plain HTTP to a non-local endpoint |
+| MCP306 | MCP server runs with sudo or has root/home directory access |
 
 Plus any `[[custom_rules]]` you define.
 

@@ -28,6 +28,15 @@ detail:
 ## [Unreleased]
 
 ### Added
+- **`audit-local`** checks supported Claude Desktop/Code, Cursor, VS Code,
+  Windsurf, Gemini, and workspace MCP configs locally. It redacts credential
+  values, lists configured servers and checked paths, reports read errors,
+  supports table/JSON/Markdown output, repeatable explicit config paths, and
+  case-insensitive severity thresholds.
+- **MCP303–MCP306** identify unpinned `npx`/`uvx` launches, download-to-shell
+  commands, non-local plain HTTP endpoints, and `sudo` or whole-root/home
+  directory access in locally configured MCP servers. Docker image tags are
+  explicitly outside the check's scope.
 - **MCP006** flags narrowly defined concealed-access and sensitive-data
   exfiltration language in JSON MCP prompt, resource, and resource-template
   descriptions. It does not inspect prompt bodies or infer runtime behavior.
