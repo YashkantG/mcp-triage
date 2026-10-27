@@ -145,7 +145,8 @@ def load_config(root: Path, config_path: Path | None = None) -> Config:
         ignore.get("paths", []), "ignore.paths", selected_config
     )
     severity_overrides = {
-        rule: _severity(value, f"severity.{rule}", selected_config)
+        # Upper-cased like [ignore] rules, so `mcp004 = "LOW"` isn't silently ignored.
+        rule.upper(): _severity(value, f"severity.{rule}", selected_config)
         for rule, value in severity_data.items()
     }
 

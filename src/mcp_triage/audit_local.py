@@ -30,6 +30,7 @@ _DOWNLOAD_PIPE = re.compile(
 )
 _EXACT_NPM_VERSION = re.compile(r"@(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)$")
 _EXACT_PYTHON_VERSION = re.compile(r"==\s*\d+(?:\.\d+){1,3}(?:[A-Za-z0-9.+-]*)$")
+_WINDOWS_DRIVE = re.compile(r"^[A-Za-z]:/")
 
 
 @dataclass(frozen=True)
@@ -131,28 +132,31 @@ def _is_placeholder(value: str) -> bool:
 
 def _credential_findings(server_name: str, server: dict, config_file: str) -> list[Finding]:
     findings = []
-    for key, value in _key_values(server):
+    for key_path, key, value in _key_values(server):
         if _SECRET_KEY.search(str(key)) and isinstance(value, str) and value.strip() and not _is_placeholder(value):
+            # The key path is safe to show and tells the user which entry to
+            # move into a secret store; the value never leaves this function.
             findings.append(Finding(
                 rule_id="MCP201",
                 severity=Severity.HIGH,
                 file=config_file,
                 message=(
-                    f"Server '{server_name}' has a credential-like value in its "
-                    "configuration (value redacted)"
+                    f"Server '{server_name}' has a credential-like value in "
+                    f"'{key_path}' (value redacted)"
                 ),
             ))
     return findings
 
 
-def _key_values(value):
+def _key_values(value, path=""):
     if isinstance(value, dict):
         for key, child in value.items():
-            yield key, child
-            yield from _key_values(child)
+            child_path = f"{path}.{key}" if path else str(key)
+            yield child_path, key, child
+            yield from _key_values(child, child_path)
     elif isinstance(value, list):
-        for child in value:
-            yield from _key_values(child)
+        for index, child in enumerate(value):
+            yield from _key_values(child, f"{path}[{index}]")
 
 
 def _command_tokens(server: dict) -> list[str]:
@@ -218,19 +222,38 @@ def _is_local_host(host: str | None) -> bool:
     return False
 
 
+def _host_side(spec: str) -> str:
+    """Host path of a `host:container[:mode]` volume spec, or the value itself.
+
+    A Windows host path carries its own drive colon (`C:/Users/me:/data`), so
+    splitting on every colon would never see the home directory.
+    """
+    if _WINDOWS_DRIVE.match(spec):
+        return spec[:2] + spec[2:].split(":", 1)[0]
+    return spec.split(":", 1)[0]
+
+
+def _is_root_or_home(candidate: str, home_path: str) -> bool:
+    if candidate in {"/", "~", "~/"} or re.fullmatch(r"[A-Za-z]:/?", candidate):
+        return True
+    trimmed = candidate.rstrip("/")
+    if _WINDOWS_DRIVE.match(home_path):
+        # Windows paths are case-insensitive.
+        return trimmed.casefold() == home_path.casefold()
+    return trimmed == home_path
+
+
 def _is_whole_home_mount(value: str, home: Path) -> bool:
-    home_path = str(home.resolve())
+    home_path = home.resolve().as_posix().rstrip("/")
     normalized = value.replace("\\", "/")
-    for segment in re.split(r"[:,\s,]", normalized):
+    for segment in re.split(r"[,\s]", normalized):
         cleaned = segment.strip("\"'")
         if "=" in cleaned:
             key, candidate = cleaned.split("=", 1)
             if key.casefold() in {"source", "src"}:
                 cleaned = candidate
-        if cleaned in {"/", "~", home_path}:
+        if cleaned and _is_root_or_home(_host_side(cleaned), home_path):
             return True
-    if normalized.startswith(f"{home_path}:") or f"source={home_path}," in normalized:
-        return True
     return False
 
 

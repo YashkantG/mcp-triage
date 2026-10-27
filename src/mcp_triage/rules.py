@@ -13,6 +13,7 @@ RULES = {
     "MCP103": "Unsafe deserialization",
     "MCP104": "Aliased subprocess call with shell execution enabled",
     "MCP201": "Hardcoded secret or credential",
+    "MCP202": "Hardcoded AI or cloud provider API key",
     "MCP301": "Server bound to all network interfaces",
     "MCP302": "Authentication / trust check disabled",
     "MCP303": "MCP server package is not pinned to an exact version",

@@ -6,7 +6,9 @@ from typer.testing import CliRunner
 from mcp_triage.cli import app
 
 FIXTURES = Path(__file__).parent / "fixtures"
-runner = CliRunner()
+# A fixed, wide terminal: Typer's rich error panel otherwise truncates
+# messages to whatever width the host console reports (narrow on Windows).
+runner = CliRunner(env={"COLUMNS": "200"})
 
 
 def test_scan_exits_nonzero_on_high_severity():
