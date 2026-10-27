@@ -125,12 +125,20 @@ mcp-triage scan ./some-mcp-server</code></pre>
     <tr><td>MCP003</td><td>Suspiciously long description (payload smuggling)</td></tr>
     <tr><td>MCP004</td><td>Over-broad capability advertised by a tool</td></tr>
     <tr><td>MCP005</td><td>Tool schema accepting arbitrary unvalidated input</td></tr>
+    <tr><td>MCP006</td><td>Concealed or exfiltrative prompt/resource description</td></tr>
+    <tr><td>MCP007</td><td>Nested tool schema accepting arbitrary fields</td></tr>
     <tr><td>MCP101</td><td>Dangerous code execution sink (<code>eval</code>, <code>exec</code>, <code>new Function</code>)</td></tr>
     <tr><td>MCP102</td><td>Shell command built from untrusted input</td></tr>
     <tr><td>MCP103</td><td>Unsafe deserialisation (<code>pickle.loads</code>, unsafe <code>yaml.load</code>)</td></tr>
+    <tr><td>MCP104</td><td>Aliased Python subprocess call with <code>shell=True</code></td></tr>
     <tr><td>MCP201</td><td>Hardcoded secret or credential</td></tr>
+    <tr><td>MCP202</td><td>Hardcoded AI or cloud provider API key</td></tr>
     <tr><td>MCP301</td><td>Server bound to all network interfaces</td></tr>
     <tr><td>MCP302</td><td>Authentication or trust check disabled</td></tr>
+    <tr><td>MCP303</td><td>MCP package launched with npx/uvx without an exact version pin</td></tr>
+    <tr><td>MCP304</td><td>MCP launch command downloads a script and pipes it to a shell</td></tr>
+    <tr><td>MCP305</td><td>MCP server uses plain HTTP to a non-local endpoint</td></tr>
+    <tr><td>MCP306</td><td>MCP server runs with sudo or has root/home directory access</td></tr>
   </table>
   <p class="muted">Plus any custom rules you define in <code>.mcptriage.toml</code>.</p>
 

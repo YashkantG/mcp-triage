@@ -16,7 +16,16 @@ jobs:
             os: ubuntu-latest
           - python-version: "3.12"
             os: ubuntu-latest
+          # audit-local reads client configs at OS-specific paths and parses
+          # Windows drive-letter mounts; those code paths need a real runner.
+          - python-version: "3.12"
+            os: windows-latest
+          - python-version: "3.12"
+            os: macos-latest
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -36,7 +45,7 @@ jobs:
         run: mcp-triage scan .
 
       - name: Verify the committed self-scan badge is current
-        if: matrix.python-version == '3.12'
+        if: matrix.python-version == '3.12' && runner.os == 'Linux'
         run: |
           mcp-triage scan . --format badge > /tmp/badge.json
           diff /tmp/badge.json .github/badges/self-scan.json \

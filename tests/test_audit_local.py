@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from mcp_triage.audit_local import audit_local, default_config_paths
+from mcp_triage.audit_local import _host_side, _is_root_or_home, audit_local, default_config_paths
 from mcp_triage.models import Severity
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -282,3 +282,24 @@ def test_vulnerable_and_clean_fixture_pair_covers_local_audit_rules():
         "MCP201", "MCP303", "MCP304", "MCP305", "MCP306",
     }
     assert clean.findings == []
+
+
+def test_credential_finding_names_the_key_without_the_value(tmp_path):
+    secret_value = "ghp_0123456789abcdefghijklmnopqrstuvwx"
+    path = _config(tmp_path, {"command": "node", "env": {"GITHUB_TOKEN": secret_value}})
+
+    result = audit_local(paths=[path], home=tmp_path)
+
+    messages = [f.message for f in result.findings if f.rule_id == "MCP201"]
+    assert messages == ["Server 'example' has a credential-like value in 'env.GITHUB_TOKEN' (value redacted)"]
+
+
+def test_windows_volume_specs_keep_the_drive_colon():
+    # Checked on the normalized (forward-slash) form so this runs on any OS.
+    home = "C:/Users/alice"
+    assert _host_side("C:/Users/alice:/host:ro") == "C:/Users/alice"
+    assert _is_root_or_home(_host_side("C:/Users/alice:/host"), home)
+    assert _is_root_or_home("c:/users/ALICE/", home)
+    assert _is_root_or_home("C:/", home)
+    assert not _is_root_or_home(_host_side("C:/Users/alice/project:/workspace"), home)
+    assert not _is_root_or_home("/Users/Alice", "/Users/alice")

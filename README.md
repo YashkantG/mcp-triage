@@ -99,7 +99,9 @@ result is not a guarantee that a configured server is safe.
   `subprocess(..., shell=True)` (including imported aliases in Python),
   `os.system`, `pickle.loads`, unsafe `yaml.load`.
 - 🔑 **Hardcoded secrets** — API keys, AWS keys, GitHub/Slack tokens committed
-  into source or config.
+  into source or config, including env-var style entries (`"ANTHROPIC_API_KEY": "…"`)
+  in MCP client configs and provider key formats (Anthropic, OpenAI, Stripe,
+  Google, Hugging Face, …) wherever they appear.
 - 🌐 **Unsafe defaults** — binding to `0.0.0.0`, `trust` / `skip_auth` flags
   left on.
 - 🖥️ **Risky local MCP configuration** — `mcp-triage audit-local` flags
@@ -318,6 +320,7 @@ Reproduce it yourself: `python research/ecosystem_scan.py --sample-size 150`.
 | MCP103 | Unsafe deserialization (`pickle.loads`, unsafe `yaml.load`) |
 | MCP104 | Aliased Python subprocess call with `shell=True` |
 | MCP201 | Hardcoded secret or credential |
+| MCP202 | Hardcoded AI or cloud provider API key (Anthropic, OpenAI, GitHub, Stripe, Google, …) |
 | MCP301 | Server bound to all network interfaces |
 | MCP302 | Authentication / trust check disabled |
 | MCP303 | MCP package launched with npx/uvx without an exact version pin |

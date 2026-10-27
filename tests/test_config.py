@@ -53,6 +53,13 @@ def test_severity_override(tmp_path):
     assert findings[0].severity.value == "LOW"
 
 
+def test_severity_override_rule_id_is_case_insensitive(tmp_path):
+    _write(tmp_path / "server.py", "import subprocess\nsubprocess.run('x', shell=True)\n")
+    _write(tmp_path / ".mcptriage.toml", '[severity]\nmcp102 = "LOW"\n')
+    findings = scan(tmp_path)
+    assert [f.severity.value for f in findings] == ["LOW"]
+
+
 def test_custom_rule_fires(tmp_path):
     _write(tmp_path / "server.py", "InternalOnlyApi.execute('x')\n")
     _write(

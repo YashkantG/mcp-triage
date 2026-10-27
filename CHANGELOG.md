@@ -27,6 +27,32 @@ detail:
 
 ## [Unreleased]
 
+### Added
+- **MCP202** reports AI and cloud provider key formats — Anthropic, OpenAI,
+  GitHub fine-grained, Stripe live, Google, Hugging Face, GitLab, and npm —
+  wherever they appear, including bare values in `args`, headers, and URLs.
+  Lines already reported as MCP201 keep that rule ID, so existing baselines and
+  ignores are unaffected.
+- CI now also runs on Windows and macOS.
+
+### Fixed
+- **MCP201 missed env-var style credential names**, which is how MCP client
+  configs pass secrets: `\bAPI_KEY\b` never matched inside `BRAVE_API_KEY`, so
+  `"ANTHROPIC_API_KEY": "…"`, `"STRIPE_SECRET_KEY": "…"` or
+  `"GITHUB_PERSONAL_ACCESS_TOKEN": "…"` in an `mcp.json` went unreported by
+  `scan`. Names like `max_tokens` and `token_count` are still not treated as
+  credentials.
+- MCP201 skipped every line containing `<`, which hid secrets on lines with
+  TypeScript generics or comparisons (`Record<string, string>`).
+- **MCP306 never fired on Windows**: home-directory mounts such as
+  `C:\Users\me:/host` were split on the drive colon and compared with
+  mismatched slashes. Drive roots (`C:\`) are now treated like `/`, and
+  Windows paths compare case-insensitively.
+- `audit-local` credential findings now name the offending key
+  (`env.GITHUB_TOKEN`) so it can be found and moved; the value stays redacted.
+- `[severity]` overrides in `.mcptriage.toml` now accept lower-case rule IDs,
+  as `[ignore] rules` already did, instead of silently doing nothing.
+
 ## [0.5.0] - 2026-10-20
 
 ### Added

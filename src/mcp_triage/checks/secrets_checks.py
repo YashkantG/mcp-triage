@@ -13,10 +13,32 @@ _SECRET_PATTERNS = [
     ("Private key block", re.compile(r"-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----")),
     (
         "Hardcoded credential assignment",
+        # The optional prefix/suffix lets env-var style names through
+        # (`ANTHROPIC_API_KEY`, `STRIPE_SECRET_KEY`, `GITHUB_PERSONAL_ACCESS_TOKEN`) —
+        # exactly how MCP client configs pass credentials in their `env` blocks.
+        # The trailing lookahead still rejects `max_tokens`, `token_count`, etc.
         re.compile(
-            r"""(?i)\b(api[_-]?key|secret|password|token|access[_-]?key)\b["']?\s*[:=]\s*["'][A-Za-z0-9_\-/+=]{12,}["']"""
+            r"""(?i)(?<![a-z0-9])(?:[a-z0-9_-]{0,64}[_-])?(api[_-]?key|secret|password|token|access[_-]?key)"""
+            r"""(?:[_-]access)?(?:[_-]key)?(?![a-z0-9_])["']?\s*[:=]\s*["'][A-Za-z0-9_\-/+=]{12,}["']"""
         ),
     ),
+]
+
+# Provider-issued key formats (MCP202). Their prefixes are distinctive enough
+# that a match is a key whatever it's assigned to — including the bare values in
+# `args`, headers, and URLs that the assignment pattern above can't see.
+_PROVIDER_KEY_PATTERNS = [
+    ("Anthropic API key", re.compile(r"\bsk-ant-(?:api|admin)\d{2}-[A-Za-z0-9_-]{32,}")),
+    (
+        "OpenAI API key",
+        re.compile(r"\bsk-(?:proj|svcacct|admin)-[A-Za-z0-9_-]{40,}|\bsk-[A-Za-z0-9]{20}T3BlbkFJ[A-Za-z0-9]{20}\b"),
+    ),
+    ("GitHub fine-grained token", re.compile(r"\bgithub_pat_[A-Za-z0-9_]{60,}")),
+    ("Stripe live key", re.compile(r"\b[rs]k_live_[A-Za-z0-9]{20,}")),
+    ("Google API key", re.compile(r"\bAIza[0-9A-Za-z_-]{35}(?![0-9A-Za-z_-])")),
+    ("Hugging Face token", re.compile(r"\bhf_[A-Za-z0-9]{34,}")),
+    ("GitLab access token", re.compile(r"\bglpat-[A-Za-z0-9_-]{20,}")),
+    ("npm access token", re.compile(r"\bnpm_[A-Za-z0-9]{36}\b")),
 ]
 
 # A line containing any of these is treated as a non-secret. Derived from a
@@ -28,8 +50,12 @@ _SECRET_PATTERNS = [
 # This deliberately trades recall for precision. A scanner that cries wolf on
 # every mock credential gets switched off, and a switched-off scanner has a
 # detection rate of zero.
+#
+# "<" used to be here too, but it skipped every line containing a TypeScript
+# generic or a comparison (`Record<string, string>`); no pattern above can
+# match a `<your-key>` style value anyway.
 _PLACEHOLDER_HINTS = (
-    "example", "xxxx", "changeme", "your_", "your-", "<", "${",
+    "example", "xxxx", "changeme", "your_", "your-", "${",
     "process.env", "os.environ", "getenv", "mock", "fake", "dummy",
     "placeholder", "sample", "redacted", "not-a-real", "notreal",
     "test-", "-test", "test_", "_test", "local-", "localhost",
@@ -52,10 +78,13 @@ def scan_file_for_secrets(path: Path) -> list[Finding]:
         lowered = line.lower()
         if any(hint in lowered for hint in _PLACEHOLDER_HINTS):
             continue
-        for label, pattern in _SECRET_PATTERNS:
-            if pattern.search(line):
+        # MCP201 is checked first so lines it already reported keep their
+        # rule ID (and therefore their baseline fingerprint). One finding per line.
+        for rule_id, patterns in (("MCP201", _SECRET_PATTERNS), ("MCP202", _PROVIDER_KEY_PATTERNS)):
+            label = next((label for label, pattern in patterns if pattern.search(line)), None)
+            if label is not None:
                 findings.append(Finding(
-                    rule_id="MCP201",
+                    rule_id=rule_id,
                     severity=Severity.HIGH,
                     file=str(path),
                     line=lineno,
